@@ -1,9 +1,12 @@
 package dev.architectury.idea.util
 
+import com.intellij.openapi.module.Module
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import org.jetbrains.annotations.PropertyKey
+import org.jetbrains.kotlin.idea.base.util.module
 
 /**
  * An Architectury target platform.
@@ -16,7 +19,7 @@ import org.jetbrains.annotations.PropertyKey
 enum class Platform(
     val id: String,
     @PropertyKey(resourceBundle = BUNDLE) private val translationKey: String,
-    private val identifyingPackage: String,
+    val identifyingPackage: String,
     val fallbackPlatforms: List<Platform> = emptyList()
 ) {
     FABRIC(PlatformIds.FABRIC, "platform.fabric", "net.fabricmc.api"),
@@ -25,26 +28,42 @@ enum class Platform(
     // QUILT(PlatformIds.QUILT, "platform.quilt", "org.quiltmc", listOf(FABRIC)),
     ;
 
+
+     fun hasClass(clazz: PsiClass): Boolean {
+       return clazz.module?.name?.contains(".${this.id}.", ignoreCase = true) ?: false
+    }
+
     /**
      * Gets the name of the [clazz]'s implementation version for this platform.
      *
      * Example: `com.example.Example` -> `com.example.forge.ExampleImpl`
      */
-    fun getImplementationName(clazz: PsiClass): String {
-        val className = clazz.binaryName ?: error("Could not get binary name of $this")
-        val parts = className.split('.')
-        val head = parts.dropLast(1).joinToString(separator = ".")
-        val tail = parts.last().replace("$", "")
-        val platPackageStr = platSubPackageName();
-        return "$head.${platPackageStr}.${tail}Impl"
-    }
 
-    fun platSubPackageName(): String {
-        return "platform"
+    companion object {
+
+        fun getImplementationName(clazz: PsiClass): String {
+            val className = clazz.binaryName ?: error("Could not get binary name of $this")
+            val parts = className.split('.')
+            val head = parts.dropLast(1).joinToString(separator = ".")
+            val tail = parts.last().replace("$", "")
+            val platPackageStr = platSubPackageName();
+            return "$head.${platPackageStr}.${tail}Impl"
+        }
+        fun platSubPackageName(): String {
+            return "platform"
+        }
     }
 
     fun isIn(project: Project): Boolean =
         JavaPsiFacade.getInstance(project).findPackage(identifyingPackage) != null
 
     override fun toString() = ArchitecturyBundle[translationKey]
+
+    fun findModuleForPlatform(project: Project): Module? {
+        return ModuleManager.getInstance(project).modules.find { module ->
+            val name = module.name.lowercase()
+            // Matches: ":fabric", "myproject.fabric.main", "fabric-api", etc.
+            name == this.id || name.contains(".$this.id") || name.contains("-$this.id")
+        }
+    }
 }

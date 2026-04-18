@@ -22,6 +22,7 @@ import dev.architectury.idea.util.AnnotationType
 import dev.architectury.idea.util.ArchitecturyBundle
 import dev.architectury.idea.util.Platform
 import org.jetbrains.jps.model.java.JavaSourceRootType
+import org.jetbrains.kotlin.idea.base.util.module
 
 class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQuickFix {
     override fun getFamilyName(): String {
@@ -31,31 +32,19 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
         return ArchitecturyBundle["inspection.implementExpectPlatform"]
     }
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        val method = findMethod(descriptor.psiElement)
-            ?: error("Could not find method from ${descriptor.psiElement}")
-
+        val method = findMethod(descriptor.psiElement) ?: error("Could not find method from ${descriptor.psiElement}")
         val facade = JavaPsiFacade.getInstance(project)
-        val modules = ModuleManager.getInstance(project).modules.toList()
-
         val missingPackages = HashMap<Platform, String>()
 
-        fun moduleFor(platform: Platform): Module? {
-            return modules.firstOrNull {
-                it.name.substringBeforeLast(".")
-                    .endsWith(".${platform.name}", ignoreCase = true)
-            }
-        }
+        val implClassName = Platform.getImplementationName(method.containingClass!!)
+        // Use findClasses to get all classes with this FQN across all modules (Fabric, NeoForge, etc.)
+        val candidateClasses = facade.findClasses(implClassName, GlobalSearchScope.projectScope(project))
 
         for (platform in platforms) {
-            val module = moduleFor(platform)
-                ?: continue
-
-            // ✅ correct IntelliJ scope
-            val scope = GlobalSearchScope.moduleScope(module)
-
-            val implClassName = platform.getImplementationName(method.containingClass!!)
-
-            val implClass = facade.findClass(implClassName, scope) ?: run {
+            // Find the class from the candidates that physically lives in this platform's folder
+            val implClass = candidateClasses.firstOrNull {
+                platform.hasClass(it)
+            } ?: run {
                 val packageName = implClassName.substringBeforeLast('.')
                 val pkg = facade.findPackage(packageName)
 
@@ -64,104 +53,86 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
                     return@run null
                 }
 
-                val dir = findJavaSourceDirectory(pkg.directories)
+                // Filter directories to find the one belonging to this platform
+                val platformDirs = pkg.directories.filter {
+                    it.virtualFile.path.contains("/${platform.id}/", ignoreCase = true)
+                }
 
-                JavaDirectoryService.getInstance().getClasses(dir)
-                    .firstOrNull { it.name == implClassName.substringAfterLast('.') }
-                    ?: JavaDirectoryService.getInstance()
-                        .createClass(dir, implClassName.substringAfterLast('.'))
+                val dir = if (platformDirs.isNotEmpty()) {
+                    findJavaSourceDirectory(platformDirs.toTypedArray())
+                } else {
+                    // Fallback to searching modules if the package folder doesn't exist yet
+                    null
+                }
+
+                if (dir != null) {
+                    val shortName = implClassName.substringAfterLast('.')
+                    JavaDirectoryService.getInstance().getClasses(dir)
+                        .firstOrNull { it.name == shortName }
+                        ?: JavaDirectoryService.getInstance().createClass(dir, shortName)
+                } else {
+                    missingPackages[platform] = packageName
+                    null
+                }
             } ?: continue
 
             addMethod(project, method, implClass)
         }
 
-        missingPackages.forEach { (platform, packageName) ->
-            var directory: PsiDirectory? = null
+        // Handle platforms where the class/package was completely missing
+        if (missingPackages.isNotEmpty()) {
+            // Step out of the write action for UI dialogs
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+                missingPackages.forEach { (platform, packageName) ->
+                    var directory: PsiDirectory? = null
+                    val modules = ModuleManager.getInstance(project).modules.asSequence()
+                        .distinctBy { it.name }
+                        .toList()
 
-            fun moduleMatches(module: Module): Boolean {
-                return module.name.substringBeforeLast(".")
-                    .endsWith(".${platform.name}", ignoreCase = true)
-            }
-
-            fun handleModule(module: Module, test: Boolean): Boolean {
-                if (!moduleMatches(module)) return false
-
-                val dir = ModuleRootManager.getInstance(module).contentEntries.asSequence()
-                    .flatMap {
-                        it.getSourceFolders(
-                            if (test)
-                                JavaSourceRootType.TEST_SOURCE
-                            else
-                                JavaSourceRootType.SOURCE
-                        )
+                    fun handleModule(module: Module, test: Boolean): Boolean {
+                        // Matching module name to platform (e.g. polytone.neoforge.main)
+                        if (module.name.contains(platform.id, ignoreCase = true) && !module.name.contains("common")) {
+                            val dir = ModuleRootManager.getInstance(module).contentEntries.asSequence()
+                                .flatMap { it.getSourceFolders(if (test) JavaSourceRootType.TEST_SOURCE else JavaSourceRootType.SOURCE) }
+                                .filter { !JavaProjectRootsUtil.isForGeneratedSources(it) }
+                                .mapNotNull { it.file }
+                                .firstOrNull { it.path.contains("/main/") }
+                            if (dir != null) {
+                                directory = PsiManager.getInstance(project).findDirectory(dir)
+                                return true
+                            }
+                        }
+                        return false
                     }
-                    .filter { !JavaProjectRootsUtil.isForGeneratedSources(it) }
-                    .mapNotNull { it.file }
-                    .firstOrNull()
 
-                if (dir != null) {
-                    directory = PsiManager.getInstance(project).findDirectory(dir)
-                    return true
-                }
+                    for (module in modules) { if (handleModule(module, false)) break }
+                    if (directory == null) {
+                        for (module in modules) { if (handleModule(module, true)) break }
+                    }
 
-                return false
-            }
-
-            for (module in modules) {
-                if (handleModule(module, false)) break
-            }
-
-            if (directory == null) {
-                for (module in modules) {
-                    if (handleModule(module, true)) break
+                    ImplementExpectPlatformFixDialog(project, platform, packageName, method, directory).show()
                 }
             }
-
-            ImplementExpectPlatformFixDialog(
-                project,
-                platform,
-                packageName,
-                method,
-                directory
-            ).show()
         }
     }
+
     companion object {
         fun addMethod(project: Project, method: PsiMethod, clazz: PsiClass) {
-            // ❗ hard guard against duplicate insertion
-            val alreadyExists = clazz.methods.any { existing ->
-                existing.name == method.name &&
-                    existing.parameterList.parametersCount == method.parameterList.parametersCount
-            }
-
-            if (alreadyExists) return
-
             val elementFactory = JavaPsiFacade.getElementFactory(project)
-
             val template = elementFactory.createMethod(method.name, method.returnType)
 
+            // Copy the parameters to the template
             for (param in method.parameterList.parameters) {
                 template.parameterList.add(param)
             }
 
-            template.modifierList.setModifierProperty(PsiModifier.PUBLIC, false)
-
-            GenerateMembersUtil.copyAnnotations(
-                method,
-                template,
-                *AnnotationType.EXPECT_PLATFORM.toTypedArray()
-            )
-
-            template.modifierList.setModifierProperty(PsiModifier.PUBLIC, true)
+            // Add the different modifiers. The public modifier is first removed to correct its place.
+            template.modifierList.setModifierProperty(PsiModifier.PUBLIC, false) // remove from list...
+            GenerateMembersUtil.copyAnnotations(method, template, *AnnotationType.EXPECT_PLATFORM.toTypedArray())
+            template.modifierList.setModifierProperty(PsiModifier.PUBLIC, true) // ... add to list
             template.modifierList.setModifierProperty(PsiModifier.STATIC, true)
 
-            val inserted = GenerateMembersUtil.insert(
-                clazz,
-                template,
-                clazz.methods.lastOrNull(),
-                false
-            )
-
+            val inserted = GenerateMembersUtil.insert(clazz, template, clazz.methods.lastOrNull(), false)
             (inserted as? Navigatable)?.navigate(true)
         }
     }

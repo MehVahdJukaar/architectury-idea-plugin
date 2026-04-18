@@ -46,7 +46,7 @@ val PsiMethod.commonMethods: Set<PsiMethod>
         val name = clazz.binaryName ?: return emptySet()
         val pkg = name.substringBeforeLast('.')
 
-        val nameMatches = name.endsWith("Impl") && Platform.values().any { pkg.endsWith(".${it.platSubPackageName()}") }
+        val nameMatches = name.endsWith("Impl") && Platform.values().any { pkg.endsWith(".${Platform.platSubPackageName()}") }
         if (!nameMatches) return emptySet()
 
         val commonPkg = pkg.substringBeforeLast('.')
@@ -75,7 +75,7 @@ val PsiMethod.platformMethodsByPlatform: Map<Platform, Set<PsiMethod>>
         val clazz = containingClass ?: return emptyMap()
 
         return Platform.values().associateWith {
-            val implementationClassName = it.getImplementationName(clazz)
+            val implementationClassName = Platform.getImplementationName(clazz)
 
             JavaPsiFacade.getInstance(project)
                 .findClasses(implementationClassName, getScopeFor(this))

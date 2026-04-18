@@ -88,7 +88,7 @@ class ImplementExpectPlatformFixDialog(
                     packageName
                 )
 
-                val className = platform.getImplementationName(method.containingClass!!)
+                val className = Platform.getImplementationName(method.containingClass!!)
                 val clazz = JavaDirectoryService.getInstance().getClasses(direction)
                     .firstOrNull { it.name == className.substringAfterLast('.') }
                     ?: JavaDirectoryService.getInstance().createClass(direction, className.substringAfterLast('.'))

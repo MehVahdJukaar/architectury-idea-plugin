@@ -9,7 +9,7 @@ val kotlinVersion = "1.9.0"
 val kotlinLanguageVersion = kotlinVersion.substringBeforeLast('.')
 
 group = "dev.architectury"
-version = "1.7.2-candle"
+version = "1.7.0-candlelight"
 
 repositories {
     mavenCentral()
