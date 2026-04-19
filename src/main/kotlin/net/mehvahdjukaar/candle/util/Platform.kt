@@ -9,8 +9,6 @@ import org.jetbrains.annotations.PropertyKey
 import org.jetbrains.kotlin.idea.base.util.module
 
 /**
- * An Architectury target platform.
- *
  * @property id a unique string ID for this platform from [PlatformIds]
  * @property translationKey a resource bundle key for the display name of this platform
  * @property fallbackPlatforms fallback platforms used for finding `@PlatformImpl` implementation methods

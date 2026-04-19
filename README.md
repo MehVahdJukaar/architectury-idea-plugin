@@ -1,15 +1,18 @@
 # Candlelight IDEA Plugin
 
 An IntelliJ IDEA plugin to help with developing Minecraft mods in a cross-platform setup
-Additional features available when using the Candlelight gradle plugin
+Additional features available when using the [Candlelight](https://github.com/MehVahdJukaar/candle) gradle plugin
 
 
 ## Disclaimer
 
-This plugin is born out of a fork or Architectury IDEA plugin.
+This plugin is born out of a fork or [Architectury IDEA plugin](https://github.com/architectury/architectury-idea-plugin).
 It's distributed under the same license.
 
 ## Features
+
+Tested on Intellij 2025.3
+
 ### @PlatformImpl Support
 -  navigation between @PlatformImpl methods and their platform implementations
 
