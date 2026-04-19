@@ -7,6 +7,25 @@ data class ExpectedImplSignature(
     val returnType: PsiType,
     val parameterTypes: List<PsiType>
 ) {
+
+
+    // Add to ExpectedImplSignature class
+    fun matchesImplMethod(implMethod: PsiMethod): Boolean {
+        // Implementation method must be static
+        if (!implMethod.hasModifierProperty(PsiModifier.STATIC)) return false
+        // Name must match
+        if (implMethod.name != name) return false
+        // Parameter types must match exactly
+        val implParams = implMethod.parameterList.parameters
+        if (implParams.size != parameterTypes.size) return false
+        implParams.zip(parameterTypes).all { (param, expectedType) ->
+            param.type.equals(expectedType)
+        }
+        // Return type must match
+        val implReturn = implMethod.returnType ?: PsiType.VOID
+        return implReturn.equals(returnType)
+    }
+
     companion object {
         fun fromExpectMethod(method: PsiMethod): ExpectedImplSignature {
             val project = method.project

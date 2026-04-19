@@ -33,7 +33,6 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
         val implClassName = Platform.getImplementationName(method.containingClass!!)
         val candidateClasses = facade.findClasses(implClassName, GlobalSearchScope.projectScope(project))
 
-        // Precompute the expected signature for the implementation method
         val expectedSignature = ExpectedImplSignature.fromExpectMethod(method)
 
         for (platform in platforms) {
@@ -68,7 +67,8 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
                     }
                 } ?: continue
 
-            addMethod(project, expectedSignature, implClass)
+            // Pass the original method so we can generate a clean parameter name for the instance parameter
+            addMethod(project, expectedSignature, implClass, method)
         }
 
         if (missingPackages.isNotEmpty()) {
@@ -108,29 +108,39 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
     companion object {
         /**
          * Creates a static implementation method in the given class using the expected signature.
-         * The method body will be a stub (throwing UnsupportedOperationException or returning a default).
+         * The first parameter (the instance owner) will use the simple class name if the original
+         * method is non‑static.
          */
-        fun addMethod(project: Project, expectedSignature: ExpectedImplSignature, clazz: PsiClass) {
+        fun addMethod(
+            project: Project,
+            expectedSignature: ExpectedImplSignature,
+            clazz: PsiClass,
+            originalMethod: PsiMethod? = null
+        ) {
             WriteCommandAction.runWriteCommandAction(project) {
                 val elementFactory = JavaPsiFacade.getElementFactory(project)
 
-                // Build parameter list text (e.g. "PlayerRenderer instance, String name, int x")
                 val paramTexts = mutableListOf<String>()
                 var index = 0
+                val isInstanceMethod = originalMethod != null && !originalMethod.hasModifierProperty(PsiModifier.STATIC)
+
                 for (psiType in expectedSignature.parameterTypes) {
-                    val typeName = psiType.canonicalText
-                    val paramName = "arg$index"  // you could improve naming if needed
+                    val typeName = if (index == 0 && isInstanceMethod) {
+                        // Use simple name for the 'this' parameter
+                        originalMethod?.containingClass?.name ?: psiType.canonicalText
+                    } else {
+                        psiType.canonicalText
+                    }
+                    val paramName = if (index == 0 && isInstanceMethod) "instance" else "arg$index"
                     paramTexts.add("$typeName $paramName")
                     index++
                 }
 
-                // Build method text with stub body
                 val returnTypeText = expectedSignature.returnType.canonicalText
                 val methodText = buildString {
                     append("public static $returnTypeText ${expectedSignature.name}(")
                     append(paramTexts.joinToString(", "))
                     append(") {\n")
-                    // Generate stub body
                     if (expectedSignature.returnType == PsiType.VOID) {
                         append("    throw new UnsupportedOperationException(\"TODO: Implement for platform\");\n")
                     } else {

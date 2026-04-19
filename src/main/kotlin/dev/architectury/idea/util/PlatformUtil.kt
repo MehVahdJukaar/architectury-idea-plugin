@@ -1,14 +1,9 @@
 package dev.architectury.idea.util
 
 import com.intellij.openapi.module.ModuleUtil
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiModifier
-import com.intellij.psi.PsiModifierListOwner
+import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
+import dev.architectury.idea.inspection.ExpectedImplSignature
 
 val PsiMethod.isStatic: Boolean
     get() = modifierList.hasModifierProperty(PsiModifier.STATIC)
@@ -22,7 +17,7 @@ fun PsiModifierListOwner.hasAnnotation(type: AnnotationType): Boolean =
 val PsiMethod.isCommonExpectPlatform: Boolean
     get() =
         hasAnnotation(AnnotationType.EXPECT_PLATFORM) &&
-        !hasAnnotation(AnnotationType.TRANSFORMED_EXPECT_PLATFORM)
+            !hasAnnotation(AnnotationType.TRANSFORMED_EXPECT_PLATFORM)
 
 /**
  * Finds the first annotation of the [type] on this method.
@@ -39,7 +34,6 @@ fun PsiMethod.findAnnotation(type: AnnotationType): PsiAnnotation? =
  */
 val PsiMethod.commonMethods: Set<PsiMethod>
     get() {
-
         val clazz = containingClass ?: return emptySet()
         val name = clazz.binaryName ?: return emptySet()
         val pkg = name.substringBeforeLast('.')
@@ -56,10 +50,13 @@ val PsiMethod.commonMethods: Set<PsiMethod>
             ?.asSequence()
             ?.flatMap { it.asSequenceWithInnerClasses() }
             ?.filter { it.binaryName?.replace("$", "") == baseClass }
-            ?.mapNotNull {
-                it.findMethodBySignature(this, false)
+            ?.flatMap { commonClass ->
+                // Find the common @ExpectPlatform method that corresponds to this impl method
+                commonClass.methods.asSequence().filter { commonMethod ->
+                    commonMethod.isCommonExpectPlatform &&
+                        ExpectedImplSignature.fromExpectMethod(commonMethod).matchesImplMethod(this)
+                }
             }
-            ?.filter { it.isCommonExpectPlatform }
             ?.toSet()
             ?: emptySet()
     }
@@ -71,15 +68,18 @@ val PsiMethod.platformMethodsByPlatform: Map<Platform, Set<PsiMethod>>
     get() {
         if (!isCommonExpectPlatform) return emptyMap()
         val clazz = containingClass ?: return emptyMap()
+        val expectedSignature = ExpectedImplSignature.fromExpectMethod(this)
 
-        return Platform.values().associateWith {
+        return Platform.entries.associateWith { platform ->
             val implementationClassName = Platform.getImplementationName(clazz)
 
             JavaPsiFacade.getInstance(project)
                 .findClasses(implementationClassName, getScopeFor(this))
                 .asSequence()
-                .mapNotNull { clazz ->
-                    clazz.findMethodBySignature(this, false)
+                .flatMap { implClass ->
+                    implClass.methods.asSequence().filter { implMethod ->
+                        expectedSignature.matchesImplMethod(implMethod)
+                    }
                 }
                 .toSet()
         }
