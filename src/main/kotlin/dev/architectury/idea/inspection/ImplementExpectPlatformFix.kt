@@ -14,6 +14,7 @@ import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import dev.architectury.idea.util.ArchitecturyBundle
 import dev.architectury.idea.util.Platform
+import dev.architectury.idea.util.getDefaultReturnValue
 import org.jetbrains.jps.model.java.JavaSourceRootType
 
 class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQuickFix {
@@ -121,19 +122,17 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
                 val elementFactory = JavaPsiFacade.getElementFactory(project)
 
                 val paramTexts = mutableListOf<String>()
-                var index = 0
                 val isInstanceMethod = originalMethod != null && !originalMethod.hasModifierProperty(PsiModifier.STATIC)
 
-                for (psiType in expectedSignature.parameterTypes) {
+                for ((index, psiType) in expectedSignature.parameterTypes.withIndex()) {
                     val typeName = if (index == 0 && isInstanceMethod) {
                         // Use simple name for the 'this' parameter
-                        originalMethod?.containingClass?.name ?: psiType.canonicalText
+                        originalMethod.containingClass?.name ?: psiType.canonicalText
                     } else {
                         psiType.canonicalText
                     }
                     val paramName = if (index == 0 && isInstanceMethod) "instance" else "arg$index"
                     paramTexts.add("$typeName $paramName")
-                    index++
                 }
 
                 val returnTypeText = expectedSignature.returnType.canonicalText
@@ -156,16 +155,7 @@ class ImplementExpectPlatformFix(private val platforms: List<Platform>) : LocalQ
             }
         }
 
-        private fun getDefaultReturnValue(returnType: PsiType): String {
-            return when (returnType) {
-                PsiType.BOOLEAN -> "false"
-                PsiType.BYTE, PsiType.CHAR, PsiType.SHORT, PsiType.INT -> "0"
-                PsiType.LONG -> "0L"
-                PsiType.FLOAT -> "0.0f"
-                PsiType.DOUBLE -> "0.0"
-                else -> "null"
-            }
-        }
+
     }
 
     private tailrec fun findMethod(element: PsiElement): PsiMethod? =

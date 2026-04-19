@@ -138,3 +138,15 @@ private fun getScopeFor(element: PsiElement): GlobalSearchScope =
     } else {
         GlobalSearchScope.allScope(element.project)
     }
+
+
+fun getDefaultReturnValue(returnType: PsiType?): String {
+    return when (returnType) {
+        PsiType.BOOLEAN -> "false"
+        PsiType.BYTE, PsiType.CHAR, PsiType.SHORT, PsiType.INT -> "0"
+        PsiType.LONG -> "0L"
+        PsiType.FLOAT -> "0.0f"
+        PsiType.DOUBLE -> "0.0"
+        else -> "null"
+    }
+}

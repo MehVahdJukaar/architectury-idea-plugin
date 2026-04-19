@@ -96,13 +96,17 @@ private fun PsiMethod.signaturesMatch(other: PsiMethod): Boolean {
     return myParams.zip(otherParams).all { (p1, p2) -> p1.type.equals(p2.type) }
 }
 
-/**
- * Returns all methods from platform supertypes that can be overridden in the given common class.
- */
-fun PsiClass.findAllPlatformVirtualOverridableMethods(): Set<PsiMethod> {
+// VirtualOverrideUtils.kt
+
+data class PlatformVirtualMethod(
+    val method: PsiMethod,
+    val platform: Platform
+)
+
+fun PsiClass.findAllPlatformVirtualOverridableMethods(): List<PlatformVirtualMethod> {
     val project = project
     return CachedValuesManager.getCachedValue(this) {
-        val result = mutableSetOf<PsiMethod>()
+        val result = mutableListOf<PlatformVirtualMethod>()
         val dependencies = mutableSetOf<PsiElement>(this)
 
         for (platform in Platform.entries) {
@@ -124,7 +128,7 @@ fun PsiClass.findAllPlatformVirtualOverridableMethods(): Set<PsiMethod> {
                 for (platformClass in platformHierarchy) {
                     for (method in platformClass.methods) {
                         if (isOverridable(method)) {
-                            result.add(method)
+                            result.add(PlatformVirtualMethod(method, platform))
                             dependencies.add(method)
                         }
                     }
@@ -132,10 +136,9 @@ fun PsiClass.findAllPlatformVirtualOverridableMethods(): Set<PsiMethod> {
             }
         }
 
-        CachedValueProvider.Result(result, *dependencies.toTypedArray())
+        CachedValueProvider.Result(result.distinctBy { it.method }, *dependencies.toTypedArray())
     }
 }
-
 private fun isOverridable(method: PsiMethod): Boolean {
     if (method.isConstructor) return false
     if (method.hasModifierProperty(PsiModifier.STATIC)) return false

@@ -64,7 +64,7 @@ enum class Platform(
         return ModuleManager.getInstance(project).modules.find { module ->
             val name: String = module.name.lowercase()
             // Matches: ":fabric", "myproject.fabric.main", "fabric-api", etc.
-            name.startsWith("ideaproject") && name.contains(".${this.id}.")
+             name.contains(".${this.id}.") //name.startsWith("ideaproject") &&
         }
     }
 
