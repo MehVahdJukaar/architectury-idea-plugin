@@ -92,7 +92,10 @@ class ImplementExpectPlatformFixDialog(
                 val clazz = JavaDirectoryService.getInstance().getClasses(direction)
                     .firstOrNull { it.name == className.substringAfterLast('.') }
                     ?: JavaDirectoryService.getInstance().createClass(direction, className.substringAfterLast('.'))
-                ImplementExpectPlatformFix.addMethod(project, method, clazz)
+
+                // Use the shared signature builder and updated addMethod
+                val expectedSignature = ExpectedImplSignature.fromExpectMethod(method)
+                ImplementExpectPlatformFix.addMethod(project, expectedSignature, clazz)
             },
             title, null
         )

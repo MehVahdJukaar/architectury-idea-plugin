@@ -20,7 +20,7 @@ fun PsiModifierListOwner.hasAnnotation(type: AnnotationType): Boolean =
  * True if this method is a common, untransformed `@ExpectPlatform` method.
  */
 val PsiMethod.isCommonExpectPlatform: Boolean
-    get() = isStatic &&
+    get() =
         hasAnnotation(AnnotationType.EXPECT_PLATFORM) &&
         !hasAnnotation(AnnotationType.TRANSFORMED_EXPECT_PLATFORM)
 
@@ -39,8 +39,6 @@ fun PsiMethod.findAnnotation(type: AnnotationType): PsiAnnotation? =
  */
 val PsiMethod.commonMethods: Set<PsiMethod>
     get() {
-        // no common methods for non-statics
-        if (!isStatic) return emptySet()
 
         val clazz = containingClass ?: return emptySet()
         val name = clazz.binaryName ?: return emptySet()

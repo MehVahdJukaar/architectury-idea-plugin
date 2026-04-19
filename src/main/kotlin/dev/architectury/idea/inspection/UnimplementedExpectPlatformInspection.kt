@@ -2,11 +2,9 @@ package dev.architectury.idea.inspection
 
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
-import com.intellij.psi.JavaElementVisitor
-import com.intellij.psi.JavaPsiFacade
-import com.intellij.psi.PsiElementVisitor
-import com.intellij.psi.PsiMethod
+import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.util.PsiTypesUtil
 import dev.architectury.idea.util.AnnotationType
 import dev.architectury.idea.util.ArchitecturyBundle
 import dev.architectury.idea.util.Platform
@@ -17,54 +15,71 @@ class UnimplementedExpectPlatformInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor =
         object : JavaElementVisitor() {
             override fun visitMethod(method: PsiMethod) {
-                // 1. Only inspect @ExpectPlatform methods in common
-                if (method.isCommonExpectPlatform) {
-                    val containingClass = method.containingClass ?: return
-                    val facade = JavaPsiFacade.getInstance(method.project)
-                    val implClassName = Platform.getImplementationName(containingClass)
+                // Only inspect @ExpectPlatform methods in common source sets
+                if (!method.isCommonExpectPlatform) return
 
-                    // 2. Get every class in the project with the implementation FQN
-                    val candidateClasses =
-                        facade.findClasses(implClassName, GlobalSearchScope.projectScope(method.project))
+                val containingClass = method.containingClass ?: return
+                val project = method.project
+                val facade = JavaPsiFacade.getInstance(project)
+                val implClassName = Platform.getImplementationName(containingClass)
 
-                    // 3. Filter for platforms that are missing a valid implementation
-                    val missingPlatforms = Platform.values().filter { platform ->
-                        // Skip platforms not present in this project
-                        if (!platform.isIn(method.project)) return@filter false
+                // Find all candidate implementation classes across the project
+                val candidateClasses = facade.findClasses(implClassName, GlobalSearchScope.projectScope(project))
 
-                        // Find the implementation class that physically belongs to this platform's module
-                        val implClass = candidateClasses.firstOrNull { clazz ->
-                            platform.hasClass(clazz)
-                        }
+                // Build the expected signature of the implementation method
+                val expectedSignature = ExpectedImplSignature.fromExpectMethod(method)
 
-                        // If class is missing, or class exists but doesn't have the method signature
-                        if (implClass == null) {
-                            true
-                        } else {
-                            // Check if the specific method signature exists in that class
-                            val hasMethod = implClass.findMethodsByName(method.name, false).any { implMethod ->
-                                // Match parameter count (or full signature if you prefer)
-                                implMethod.parameterList.parametersCount == method.parameterList.parametersCount
-                            }
-                            !hasMethod
-                        }
+                val missingPlatforms = Platform.values().filter { platform ->
+                    // Skip platforms that are not present in this project/module
+                    if (!platform.isIn(project)) return@filter false
+
+                    // Find the impl class that belongs to this platform's module
+                    val implClass = candidateClasses.firstOrNull { platform.hasClass(it) }
+
+                    if (implClass == null) {
+                        true // class missing entirely
+                    } else {
+                        // Check if a method exists with the expected signature
+                        !hasMatchingImplMethod(implClass, expectedSignature)
+                    }
+                }
+
+                if (missingPlatforms.isNotEmpty()) {
+                    val fixes = missingPlatforms.mapTo(ArrayList()) { ImplementExpectPlatformFix(listOf(it)) }
+
+                    // Add "Fix all" option if multiple platforms are missing
+                    if (fixes.size > 1) {
+                        fixes.add(0, ImplementExpectPlatformFix(missingPlatforms))
                     }
 
-                    // 4. If any platform is missing its method, register the error
-                    if (missingPlatforms.isNotEmpty()) {
-                        val fixes = missingPlatforms.mapTo(ArrayList()) { ImplementExpectPlatformFix(listOf(it)) }
+                    holder.registerProblem(
+                        method.findAnnotation(AnnotationType.EXPECT_PLATFORM) ?: method.nameIdentifier ?: method,
+                        ArchitecturyBundle["inspection.missingExpectPlatform", method.name, missingPlatforms.joinToString()],
+                        *fixes.toTypedArray()
+                    )
+                }
+            }
 
-                        // Add the "Fix all" option if multiple platforms are missing
-                        if (fixes.size > 1) {
-                            fixes.add(0, ImplementExpectPlatformFix(missingPlatforms))
-                        }
+            /**
+             * Checks if the given PsiClass contains a method that matches the expected implementation signature.
+             */
+            private fun hasMatchingImplMethod(implClass: PsiClass, expected: ExpectedImplSignature): Boolean {
+                return implClass.findMethodsByName(expected.name, false).any { implMethod ->
+                    // 1. Implementation method must be static
+                    if (!implMethod.hasModifierProperty(PsiModifier.STATIC)) return@any false
 
-                        holder.registerProblem(
-                            method.findAnnotation(AnnotationType.EXPECT_PLATFORM) ?: method.nameIdentifier ?: method,
-                            ArchitecturyBundle["inspection.missingExpectPlatform", method.name, missingPlatforms.joinToString()],
-                            *fixes.toTypedArray()
-                        )
+                    // 2. Parameter types must match exactly
+                    val implParams = implMethod.parameterList.parameters
+                    val expectedTypes = expected.parameterTypes
+                    if (implParams.size != expectedTypes.size) return@any false
+
+                    val typeMatch = implParams.zip(expectedTypes).all { (param, expectedType) ->
+                        param.type.equals(expectedType)
                     }
+                    if (!typeMatch) return@any false
+
+                    // 3. Return type must match (allowing covariance? usually exact match is expected)
+                    implMethod.returnType?.equals(expected.returnType) ?: (expected.returnType == PsiType.VOID)
                 }
             }
         }
