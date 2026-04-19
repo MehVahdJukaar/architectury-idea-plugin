@@ -7,6 +7,7 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.InheritanceUtil
 import dev.architectury.idea.util.Platform
+import dev.architectury.idea.util.signatureKey
 
 /**
  * Returns all methods in platform modules that this common method virtually overrides.
@@ -21,8 +22,8 @@ fun PsiMethod.findPlatformVirtualOverrides(): Set<PsiMethod> {
         val result = mutableSetOf<PsiMethod>()
         val dependencies = mutableSetOf<PsiElement>(this, commonClass)
 
-        for (platform in Platform.entries) {
-            if (!platform.isIn(project)) continue
+        val availablePlatforms = Platform.availables(project)
+        for (platform in availablePlatforms) {
             val platformModule = platform.findModuleForPlatform(project) ?: continue
 
             // Collect all supertypes (classes and interfaces) of the common class, excluding the class itself
@@ -102,43 +103,55 @@ data class PlatformVirtualMethod(
     val method: PsiMethod,
     val platform: Platform
 )
-
 fun PsiClass.findAllPlatformVirtualOverridableMethods(): List<PlatformVirtualMethod> {
     val project = project
+
     return CachedValuesManager.getCachedValue(this) {
-        val result = mutableListOf<PlatformVirtualMethod>()
         val dependencies = mutableSetOf<PsiElement>(this)
 
-        for (platform in Platform.entries) {
-            if (!platform.isIn(project)) continue
+        // signature -> platforms + methods
+        val index = mutableMapOf<String, MutableList<PlatformVirtualMethod>>()
+
+        val availablePlats = Platform.availables(project)
+
+        for (platform in availablePlats) {
             val platformModule = platform.findModuleForPlatform(project) ?: continue
 
-            val commonSuperTypes = collectAllSuperTypes(this, mutableSetOf())
+            val commonSuperTypes = collectAllSuperTypes(this, dependencies)
                 .filter { it.qualifiedName != CommonClassNames.JAVA_LANG_OBJECT && it != this }
 
             for (superType in commonSuperTypes) {
                 val qualifiedName = superType.qualifiedName ?: continue
+
                 val platformSuperType = JavaPsiFacade.getInstance(project)
                     .findClass(qualifiedName, GlobalSearchScope.moduleRuntimeScope(platformModule, false))
                     ?: continue
 
                 dependencies.add(platformSuperType)
+
                 val platformHierarchy = collectAllSuperTypes(platformSuperType, dependencies)
 
                 for (platformClass in platformHierarchy) {
                     for (method in platformClass.methods) {
-                        if (isOverridable(method)) {
-                            result.add(PlatformVirtualMethod(method, platform))
-                            dependencies.add(method)
-                        }
+                        if (!isOverridable(method)) continue
+
+                        val key = method.signatureKey()
+                        index.getOrPut(key) { mutableListOf() }
+                            .add(PlatformVirtualMethod(method, platform))
                     }
                 }
             }
         }
 
-        CachedValueProvider.Result(result.distinctBy { it.method }, *dependencies.toTypedArray())
+        // KEEP ONLY METHODS EXISTING IN EXACTLY ONE PLATFORM
+        val result = index.values
+            .filter { it.map { pm -> pm.platform }.toSet().size == 1 }
+            .map { it.first() }
+
+        CachedValueProvider.Result(result, *dependencies.toTypedArray())
     }
 }
+
 private fun isOverridable(method: PsiMethod): Boolean {
     if (method.isConstructor) return false
     if (method.hasModifierProperty(PsiModifier.STATIC)) return false

@@ -53,6 +53,10 @@ enum class Platform(
         fun platSubPackageName(): String {
             return "platform"
         }
+
+        fun availables(project: Project): List<Platform> {
+            return Platform.entries.filter { it.isIn(project) }
+        }
     }
 
     fun isIn(project: Project): Boolean =

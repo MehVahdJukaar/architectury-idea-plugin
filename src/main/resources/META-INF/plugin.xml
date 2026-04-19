@@ -23,6 +23,10 @@
                                         implementationClass="dev.architectury.idea.gutter.CommonMethodLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="JAVA"
                                         implementationClass="dev.architectury.idea.gutter.PlatformMethodLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+                                        implementationClass="dev.architectury.idea.gutter.VirtualOverrideLineMarkerProvider"/>
+
+
         <codeInsight.lineMarkerProvider language="kotlin"
                                         implementationClass="dev.architectury.idea.kotlin.gutter.CommonFunctionLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="kotlin"
@@ -31,6 +35,8 @@
                                         implementationClass="dev.architectury.idea.kotlin.gutter.CommonPropertyLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="kotlin"
                                         implementationClass="dev.architectury.idea.kotlin.gutter.PlatformPropertyLineMarkerProvider"/>
+
+
 
         <localInspection language="JAVA"
                          displayName="Unimplemented @PlatformImpl method"
@@ -54,12 +60,13 @@
                          level="WARNING"
                          implementationClass="dev.architectury.idea.inspection.ExpectPlatformBodyInspection"/>
 
-            <completion.contributor
-                language="JAVA"
-                implementationClass="dev.architectury.idea.contributor.VirtualOverrideCompletionContributor"/>
+        <completion.contributor
+            language="JAVA"
+            implementationClass="dev.architectury.idea.contributor.VirtualOverrideCompletionContributor"/>
 
         <implicitUsageProvider implementation="dev.architectury.idea.insight.ExpectPlatformImplicitUsageProvider"/>
-        <implicitUsageProvider implementation="dev.architectury.idea.insight.VirtualPlatformOverrideImplicitUsageProvider"/>
+        <implicitUsageProvider
+            implementation="dev.architectury.idea.insight.VirtualPlatformOverrideImplicitUsageProvider"/>
     </extensions>
 
     <actions>

@@ -150,3 +150,6 @@ fun getDefaultReturnValue(returnType: PsiType?): String {
         else -> "null"
     }
 }
+
+fun PsiMethod.signatureKey(): String =
+    name + "(" + parameterList.parameters.joinToString(",") { it.type.canonicalText } + ")"

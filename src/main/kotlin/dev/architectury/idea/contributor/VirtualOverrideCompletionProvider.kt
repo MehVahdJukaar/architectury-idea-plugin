@@ -4,15 +4,18 @@ import com.intellij.codeInsight.completion.CompletionProvider
 import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
+import com.intellij.codeInsight.lookup.LookupElementDecorator.withInsertHandler
 import com.intellij.openapi.module.ModuleUtil
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiType
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.ProcessingContext
 import dev.architectury.idea.insight.PlatformVirtualMethod
 import dev.architectury.idea.insight.findAllPlatformVirtualOverridableMethods
+import dev.architectury.idea.util.AnnotationType
 import dev.architectury.idea.util.getDefaultReturnValue
 import dev.architectury.idea.util.isCommon
 // VirtualOverrideCompletionProvider.kt
@@ -66,23 +69,24 @@ class VirtualOverrideCompletionProvider : CompletionProvider<CompletionParameter
                 val project = context.project
                 val document = editor.document
 
-                // Build method text with comment and @Override
-                val methodText = buildMethodText(pvm)
+                // The completion engine inserted the method name from startOffset to tailOffset.
+                // Remove it before inserting the full method stub.
+                val startOffset = context.startOffset
+                val tailOffset = context.tailOffset
+                document.deleteString(startOffset, tailOffset)
 
-                // Insert at current caret position
-                val startOffset = editor.caretModel.offset
+                val methodText = buildMethodText(pvm)
                 document.insertString(startOffset, methodText)
 
-                // Move caret inside the method body
+                // Move caret inside the method body (after the opening brace)
                 val bodyStart = startOffset + methodText.indexOf("{") + 1
                 editor.caretModel.moveToOffset(bodyStart)
 
-                // Optionally format the inserted code
+                // Commit and reformat
                 PsiDocumentManager.getInstance(project).commitDocument(document)
                 val psiFile = PsiDocumentManager.getInstance(project).getPsiFile(document)
                 if (psiFile != null) {
-                    val insertedMethod =
-                        PsiTreeUtil.findElementOfClassAtOffset(psiFile, bodyStart, PsiMethod::class.java, false)
+                    val insertedMethod = PsiTreeUtil.findElementOfClassAtOffset(psiFile, bodyStart, PsiMethod::class.java, false)
                     insertedMethod?.let { CodeStyleManager.getInstance(project).reformat(it) }
                 }
             }
@@ -90,17 +94,22 @@ class VirtualOverrideCompletionProvider : CompletionProvider<CompletionParameter
 
     private fun buildMethodText(pvm: PlatformVirtualMethod): String {
         val method = pvm.method
-        val returnType = method.returnType?.canonicalText ?: "void"
+        val returnType = method.returnType?.let { getSimpleTypeName(it) } ?: "void"
         val methodName = method.name
+
         val params = method.parameterList.parameters.joinToString(", ") { param ->
-            "${param.type.canonicalText} ${param.name}"
+            val typeName = getSimpleTypeName(param.type)
+            "$typeName ${param.name}"
         }
+
         val exceptions = method.throwsList.referenceElements.joinToString(", ") { it.canonicalText }
         val throwsClause = if (exceptions.isNotEmpty()) " throws $exceptions" else ""
 
+        val virtualOverrideAnnotation = AnnotationType.VIRTUAL_OVERRIDE.first()
+        val platformId = pvm.platform.id.lowercase() // e.g., "neoforge", "fabric"
+
         return buildString {
-            append("// From ${pvm.platform.id}\n")
-            append("@Override\n")
+            append("@$virtualOverrideAnnotation(\"$platformId\")\n")
             append("public $returnType $methodName($params)$throwsClause {\n")
             if (returnType != "void") {
                 append("    // TODO: Implement for ${pvm.platform.id}\n")
@@ -111,5 +120,8 @@ class VirtualOverrideCompletionProvider : CompletionProvider<CompletionParameter
             append("}\n")
         }
     }
-
+    private fun getSimpleTypeName(psiType: PsiType): String {
+        // Use presentable text which typically shows simple names
+        return psiType.presentableText
+    }
 }
