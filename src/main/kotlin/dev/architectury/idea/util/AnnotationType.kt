@@ -14,6 +14,9 @@ enum class AnnotationType(private val annotations: Set<String>) : Set<String> by
     PLATFORM_ONLY(
         "dev.architectury.injectables.annotations.PlatformOnly",
         "me.shedaniel.architectury.annotations.PlatformOnly"
+    ),
+    VIRTUAL_OVERRIDE(
+        "net.mehvahdjukaar.candlelight.api.VirtualOverride"
     )
     ;
 

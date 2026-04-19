@@ -13,8 +13,7 @@ class ReplaceWithAssertionErrorFix : LocalQuickFix {
         ArchitecturyBundle["inspection.expectPlatform.replaceWithAssertion"]
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        val element = descriptor.psiElement
-        val method = when (element) {
+        val method = when (val element = descriptor.psiElement) {
             is PsiMethod -> element
             is PsiCodeBlock -> element.parent as? PsiMethod
             else -> (element.parent as? PsiMethod) ?: return

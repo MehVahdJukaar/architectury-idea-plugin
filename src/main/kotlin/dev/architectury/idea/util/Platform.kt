@@ -29,8 +29,8 @@ enum class Platform(
     ;
 
 
-     fun hasClass(clazz: PsiClass): Boolean {
-       return clazz.module?.name?.contains(".${this.id}.", ignoreCase = true) ?: false
+    fun hasClass(clazz: PsiClass): Boolean {
+        return clazz.module?.name?.contains(".${this.id}.", ignoreCase = true) ?: false
     }
 
     /**
@@ -49,6 +49,7 @@ enum class Platform(
             val platPackageStr = platSubPackageName();
             return "$head.${platPackageStr}.${tail}Impl"
         }
+
         fun platSubPackageName(): String {
             return "platform"
         }
@@ -61,9 +62,10 @@ enum class Platform(
 
     fun findModuleForPlatform(project: Project): Module? {
         return ModuleManager.getInstance(project).modules.find { module ->
-            val name = module.name.lowercase()
+            val name: String = module.name.lowercase()
             // Matches: ":fabric", "myproject.fabric.main", "fabric-api", etc.
-            name == this.id || name.contains(".$this.id") || name.contains("-$this.id")
+            name.startsWith("ideaproject") && name.contains(".${this.id}.")
         }
     }
+
 }

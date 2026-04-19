@@ -16,6 +16,9 @@ val PsiMethod.isCommonExpectPlatform: Boolean
         hasAnnotation(AnnotationType.EXPECT_PLATFORM) &&
             !hasAnnotation(AnnotationType.TRANSFORMED_EXPECT_PLATFORM)
 
+val PsiMethod.isVirtualOverride: Boolean
+    get() = hasAnnotation(AnnotationType.VIRTUAL_OVERRIDE);
+
 /**
  * Finds the first annotation of the [type] on this method.
  */
@@ -35,7 +38,7 @@ val PsiMethod.commonMethods: Set<PsiMethod>
         val name = clazz.binaryName ?: return emptySet()
         val pkg = name.substringBeforeLast('.')
 
-        val nameMatches = name.endsWith("Impl") && Platform.values().any { pkg.endsWith(".${Platform.platSubPackageName()}") }
+        val nameMatches = name.endsWith("Impl") && Platform.entries.any { pkg.endsWith(".${Platform.platSubPackageName()}") }
         if (!nameMatches) return emptySet()
 
         val commonPkg = pkg.substringBeforeLast('.')
