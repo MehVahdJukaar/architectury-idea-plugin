@@ -4,3 +4,5 @@
 build/
 classes/
 out/
+/.kotlin/
+/.gradle-local/

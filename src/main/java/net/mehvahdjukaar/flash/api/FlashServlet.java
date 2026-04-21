@@ -282,6 +282,78 @@ public class FlashServlet {
     }
 
     @GET
+    @Path("declaration")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getDeclaration(@QueryParam("class") String className,
+                                   @QueryParam("method") String methodName,
+                                   @QueryParam("project") String projectName) {
+        FlashPlugin.LOGGER.debug("Declaration endpoint called - class: " + className + ", method: " + methodName + ", project: " + projectName);
+        if (className == null || methodName == null) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Missing 'class' or 'method' parameter").build();
+        }
+
+        List<Project> projectsToCheck = new ArrayList<>();
+        var resp = getProjectsToCheck(projectsToCheck, projectName);
+        if (resp != null) return resp;
+
+        List<String> resolvedFQNs = new ArrayList<>();
+        resp = resolveClassName(className, projectsToCheck, resolvedFQNs);
+        if (resp != null) return resp;
+
+        String fqn = resolvedFQNs.get(0);
+        for (Project project : projectsToCheck) {
+            Map<String, Object> declaration = IdeaUtils.read(() ->
+                IdeaUtils.getMethodDeclaration(project, fqn, methodName));
+
+            if (declaration != null) {
+                FlashPlugin.LOGGER.debug("Found declaration in project " + project.getName());
+                try {
+                    String json = MAPPER.writeValueAsString(declaration);
+                    return Response.ok(json, MediaType.APPLICATION_JSON).build();
+                } catch (JsonProcessingException e) {
+                    return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error serializing response").build();
+                }
+            }
+        }
+        FlashPlugin.LOGGER.debug("No declaration found for class: " + fqn + ", method: " + methodName);
+        return Response.status(Response.Status.NOT_FOUND).entity("Declaration not found").build();
+    }
+
+    @GET
+    @Path("implementations")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getImplementations(@QueryParam("class") String className,
+                                       @QueryParam("method") String methodName,
+                                       @QueryParam("project") String projectName) {
+        FlashPlugin.LOGGER.debug("Implementations endpoint called - class: " + className + ", method: " + methodName + ", project: " + projectName);
+        if (className == null || methodName == null) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Missing 'class' or 'method' parameter").build();
+        }
+
+        List<Project> projectsToCheck = new ArrayList<>();
+        var resp = getProjectsToCheck(projectsToCheck, projectName);
+        if (resp != null) return resp;
+
+        List<String> resolvedFQNs = new ArrayList<>();
+        resp = resolveClassName(className, projectsToCheck, resolvedFQNs);
+        if (resp != null) return resp;
+
+        String fqn = resolvedFQNs.get(0);
+        List<Map<String, Object>> allImplementations = new ArrayList<>();
+        for (Project project : projectsToCheck) {
+            List<Map<String, Object>> implementations = IdeaUtils.read(() ->
+                IdeaUtils.getMethodImplementations(project, fqn, methodName));
+            allImplementations.addAll(implementations);
+        }
+        try {
+            String json = MAPPER.writeValueAsString(allImplementations);
+            return Response.ok(json, MediaType.APPLICATION_JSON).build();
+        } catch (JsonProcessingException e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Error serializing response").build();
+        }
+    }
+
+    @GET
     @Path("class-api")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getClassApi(@QueryParam("class") String className,
