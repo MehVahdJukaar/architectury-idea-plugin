@@ -17,12 +17,13 @@ data class ExpectedImplSignature(
         // Parameter types must match exactly
         val implParams = implMethod.parameterList.parameters
         if (implParams.size != parameterTypes.size) return false
-        implParams.zip(parameterTypes).all { (param, expectedType) ->
-            param.type == expectedType
+        val typeMatch = implParams.zip(parameterTypes).all { (param, expectedType) ->
+            param.type.canonicalText == expectedType.canonicalText
         }
+        if (!typeMatch) return false
         // Return type must match
-        val implReturn = implMethod.returnType ?: PsiType.VOID
-        return implReturn.equals(returnType)
+        val implReturnText = (implMethod.returnType ?: PsiType.VOID).canonicalText
+        return implReturnText == returnType.canonicalText
     }
 
     companion object {

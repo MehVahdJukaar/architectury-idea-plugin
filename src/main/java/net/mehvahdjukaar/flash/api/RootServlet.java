@@ -19,20 +19,19 @@ public class RootServlet {
             "<p>Server is running on port 4303</p>" +
             "<h2>Available Endpoints</h2>" +
             "<ul>" +
-            "<li><a href=\"/superclasses?class=java.lang.String\">/superclasses?class=java.lang.String</a> - Get superclasses for a class</li>" +
-            "<li><a href=\"/method-content?class=java.lang.String&method=toString\">/method-content?class=java.lang.String&method=toString</a> - Get content of a method</li>" +
-            "<li><a href=\"/class-content?class=java.lang.String\">/class-content?class=java.lang.String</a> - Get full content of a class</li>" +
-            "<li><a href=\"/partial-class-content?class=java.lang.String&startLine=1&endLine=10\">/partial-class-content?class=java.lang.String&startLine=1&endLine=10</a> - Get partial content of a class</li>" +
-            "<li><a href=\"/containing-method?class=java.lang.String&line=5\">/containing-method?class=java.lang.String&line=5</a> - Get the method containing a line</li>" +
-            "<li><a href=\"/callers?class=java.lang.String&method=toString\">/callers?class=java.lang.String&method=toString</a> - Get callers of a method</li>" +
-            "<li><a href=\"/declaration?class=java.lang.String&method=toString\">/declaration?class=java.lang.String&method=toString</a> - Get declaration of a method</li>" +
-            "<li><a href=\"/implementations?class=java.lang.String&method=toString\">/implementations?class=java.lang.String&method=toString</a> - Get implementations of a method</li>" +
-            "<li><a href=\"/class-info?class=java.lang.String\">/class-info?class=java.lang.String</a> - Get information about a class</li>" +
-            "<li><a href=\"/class-usages?class=java.lang.String\">/class-usages?class=java.lang.String</a> - Get usages of a class</li>" +
-            "<li><a href=\"/field-usages?class=java.lang.String&field=value\">/field-usages?class=java.lang.String&field=value</a> - Get usages of a field</li>" +
-            "<li><a href=\"/class-inheritors?class=java.lang.String\">/class-inheritors?class=java.lang.String</a> - Get inheritors of a class</li>" +
-            "<li><a href=\"/class-api?class=java.lang.String\">/class-api?class=java.lang.String</a> - Get method signatures of a class</li>" +
-            "<li><a href=\"/class-fields?class=java.lang.String\">/class-fields?class=java.lang.String</a> - Get field signatures of a class</li>" +
+            "<li><a href=\"/content/method?class=java.lang.String&method=toString\">/content/method?class=java.lang.String&method=toString</a> - Get content of a method</li>" +
+            "<li><a href=\"/content/class?class=java.lang.String\">/content/class?class=java.lang.String</a> - Get full content of a class</li>" +
+            "<li><a href=\"/content/partial-class?class=java.lang.String&startLine=1&endLine=10\">/content/partial-class?class=java.lang.String&startLine=1&endLine=10</a> - Get partial content of a class</li>" +
+            "<li><a href=\"/content/containing-method?class=java.lang.String&line=5\">/content/containing-method?class=java.lang.String&line=5</a> - Get the method containing a line</li>" +
+            "<li><a href=\"/usages/method?class=java.lang.String&method=toString\">/usages/method?class=java.lang.String&method=toString</a> - Get callers of a method</li>" +
+            "<li><a href=\"/usages/class?class=java.lang.String\">/usages/class?class=java.lang.String</a> - Get usages of a class</li>" +
+            "<li><a href=\"/usages/field?class=java.lang.String&field=value\">/usages/field?class=java.lang.String&field=value</a> - Get usages of a field</li>" +
+            "<li><a href=\"/structure/class-info?class=java.lang.String\">/structure/class-info?class=java.lang.String</a> - Get information about a class</li>" +
+            "<li><a href=\"/structure/declaration?class=java.lang.String&method=toString\">/structure/declaration?class=java.lang.String&method=toString</a> - Get declaration of a method</li>" +
+            "<li><a href=\"/structure/implementations?class=java.lang.String&method=toString\">/structure/implementations?class=java.lang.String&method=toString</a> - Get implementations of a method</li>" +
+            "<li><a href=\"/structure/class-inheritors?class=java.lang.String\">/structure/class-inheritors?class=java.lang.String</a> - Get inheritors of a class</li>" +
+            "<li><a href=\"/structure/class-api?class=java.lang.String\">/structure/class-api?class=java.lang.String</a> - Get method signatures of a class</li>" +
+            "<li><a href=\"/structure/class-fields?class=java.lang.String\">/structure/class-fields?class=java.lang.String</a> - Get field signatures of a class</li>" +
             "</ul>" +
             "<h3>Debug Info</h3>" +
             "<p>Open projects: " + IdeaUtils.getOpenProjectNames() + "</p>" +

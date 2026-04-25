@@ -2,6 +2,7 @@ package net.mehvahdjukaar.candle.inspection
 
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import net.mehvahdjukaar.candle.util.AnnotationType
@@ -10,7 +11,7 @@ import net.mehvahdjukaar.candle.util.Platform
 import net.mehvahdjukaar.candle.util.findAnnotation
 import net.mehvahdjukaar.candle.util.hasPlatformImplAnnotation
 
-class UnimplementedExpectPlatformInspection : LocalInspectionTool() {
+class UnimplementedPlatformImplInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor =
         object : JavaElementVisitor() {
             override fun visitMethod(method: PsiMethod) {
@@ -52,6 +53,7 @@ class UnimplementedExpectPlatformInspection : LocalInspectionTool() {
                     holder.registerProblem(
                         method.findAnnotation(AnnotationType.PLATFORM_IMPLEMENTATION) ?: method.nameIdentifier ?: method,
                         CandleBundle["inspection.missingExpectPlatform", method.name, missingPlatforms.joinToString()],
+                        ProblemHighlightType.ERROR,
                         *fixes.toTypedArray()
                     )
                 }
@@ -61,23 +63,7 @@ class UnimplementedExpectPlatformInspection : LocalInspectionTool() {
              * Checks if the given PsiClass contains a method that matches the expected implementation signature.
              */
             private fun hasMatchingImplMethod(implClass: PsiClass, expected: ExpectedImplSignature): Boolean {
-                return implClass.findMethodsByName(expected.name, false).any { implMethod ->
-                    // 1. Implementation method must be static
-                    if (!implMethod.hasModifierProperty(PsiModifier.STATIC)) return@any false
-
-                    // 2. Parameter types must match exactly
-                    val implParams = implMethod.parameterList.parameters
-                    val expectedTypes = expected.parameterTypes
-                    if (implParams.size != expectedTypes.size) return@any false
-
-                    val typeMatch = implParams.zip(expectedTypes).all { (param, expectedType) ->
-                        param.type == expectedType
-                    }
-                    if (!typeMatch) return@any false
-
-                    // 3. Return type must match (allowing covariance? usually exact match is expected)
-                    implMethod.returnType?.equals(expected.returnType) ?: (expected.returnType == PsiType.VOID)
-                }
+                return implClass.findMethodsByName(expected.name, false).any { expected.matchesImplMethod(it) }
             }
         }
 }

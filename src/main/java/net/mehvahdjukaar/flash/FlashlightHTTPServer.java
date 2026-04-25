@@ -1,6 +1,9 @@
 package net.mehvahdjukaar.flash;
 
 import net.mehvahdjukaar.flash.api.ContentServlet;
+import net.mehvahdjukaar.flash.api.RootServlet;
+import net.mehvahdjukaar.flash.api.StructureServlet;
+import net.mehvahdjukaar.flash.api.UsagesServlet;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -22,6 +25,9 @@ public class FlashlightHTTPServer {
 
         // MANUAL registration
         config.register(ContentServlet.class);
+        config.register(RootServlet.class);
+        config.register(StructureServlet.class);
+        config.register(UsagesServlet.class);
         ServletHolder jerseyServlet = new ServletHolder(new ServletContainer(config));
         context.addServlet(jerseyServlet, "/*");
 

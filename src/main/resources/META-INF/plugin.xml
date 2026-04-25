@@ -1,13 +1,11 @@
 <idea-plugin>
     <id>net.mehvahdjukaar.candlelight</id>
-    <name>Candlelight Idea Plugin</name>
+    <name>Candlelight Idea</name>
     <vendor url="https://github.com/MehVahdJukaar/architectury-idea-plugin">Candlelight</vendor>
 
     <description><![CDATA[
-    Companion plugin for the Candlelight gradle plugin.
+    Companion plugin for the Candlelight Gradle plugin.
     ]]></description>
-
-    <icon path="/pluginIcon.png"/>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode supportsK2="true"/>
@@ -20,8 +18,9 @@
 
     <extensions defaultExtensionNs="com.intellij">
 
-            <postStartupActivity implementation="net.mehvahdjukaar.flash.FlashPlugin"/>
-
+        <!--
+          <postStartupActivity implementation="net.mehvahdjukaar.flash.FlashPlugin"/>
+        -->
 
         <codeInsight.lineMarkerProvider language="JAVA"
                                         implementationClass="net.mehvahdjukaar.candle.gutter.CommonMethodLineMarkerProvider"/>
@@ -32,26 +31,23 @@
 
         <localInspection language="JAVA"
                          shortName="VirtualOverride"
-                         displayName="Invalid @VirtualOverride"
-                         groupName="Candlelight"
                          enabledByDefault="true"
                          level="ERROR"
-                         implementationClass="net.mehvahdjukaar.candle.inspection.VirtualOverrideInspection"/>
+                         implementationClass="net.mehvahdjukaar.candle.inspection.VirtualOverrideInspection"
+                         key="inspection.virtual.override.display.name" bundle="messages.Candle" groupKey="group.key"/>
 
         <localInspection language="JAVA"
-                         displayName="Unimplemented @PlatformImpl method"
-                         groupName="Candlelight"
                          enabledByDefault="true"
                          level="WARNING"
-                         implementationClass="net.mehvahdjukaar.candle.inspection.UnimplementedExpectPlatformInspection"/>
+                         implementationClass="net.mehvahdjukaar.candle.inspection.UnimplementedPlatformImplInspection"
+                         key="inspection.unimplemented.platform.impl.display.name" bundle="messages.Candle" groupKey="group.key"/>
 
         <localInspection language="JAVA"
                          shortName="ExpectPlatformBody"
-                         displayName="Invalid @PlatformImpl method body"
-                         groupName="Candlelight"
                          enabledByDefault="true"
                          level="WARNING"
-                         implementationClass="net.mehvahdjukaar.candle.inspection.ExpectPlatformBodyInspection"/>
+                         implementationClass="net.mehvahdjukaar.candle.inspection.ExpectPlatformBodyInspection"
+                         key="inspection.expect.platform.body.display.name" bundle="messages.Candle" groupKey="group.key"/>
 
         <completion.contributor
             language="JAVA"
