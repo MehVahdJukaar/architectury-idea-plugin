@@ -22,6 +22,7 @@ Tested on Intellij 2025.3
 -  navigation between @PlatformImpl methods and their platform implementations
 -  Inspection warnings for missing platform implementations with quick fixes
 -  Quick fix @PlatformImpl method with erroneous body
+-  Also works with instance methods
 
 
 
