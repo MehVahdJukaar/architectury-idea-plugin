@@ -42,19 +42,37 @@ class ImplementPlatformImplFix(private val platforms: List<Platform>) : LocalQui
                     val packageName = implClassName.substringBeforeLast('.')
                     val pkg = facade.findPackage(packageName)
 
-                    if (pkg == null) {
-                        missingPackages[platform] = packageName
-                        return@run null
-                    }
-
-                    val platformDirs = pkg.directories.filter {
+                    val platformDirs = pkg?.directories?.filter {
                         it.virtualFile.path.contains("/${platform.id}/", ignoreCase = true)
-                    }
+                    } ?: emptyList()
 
-                    val dir = if (platformDirs.isNotEmpty()) {
+                    var dir = if (platformDirs.isNotEmpty()) {
                         findJavaSourceDirectory(platformDirs.toTypedArray())
                     } else {
                         null
+                    }
+
+                    if (dir == null) {
+                        val module = platform.findModuleForPlatform(project)
+                        if (module != null) {
+                            val contentEntry = ModuleRootManager.getInstance(module).contentEntries.firstOrNull()
+                            val sourceRoot = contentEntry?.getSourceFolders(JavaSourceRootType.SOURCE)
+                                ?.firstOrNull { !JavaProjectRootsUtil.isForGeneratedSources(it) && it.file?.path?.contains("/main/") == true }
+                                ?: contentEntry?.getSourceFolders(JavaSourceRootType.SOURCE)?.firstOrNull()
+
+                            val rootFile = sourceRoot?.file
+                            if (rootFile != null) {
+                                val rootDir = PsiManager.getInstance(project).findDirectory(rootFile)
+                                if (rootDir != null) {
+                                    dir = rootDir
+                                    packageName.split('.').forEach { part ->
+                                        if (part.isNotEmpty()) {
+                                            dir = dir!!.findSubdirectory(part) ?: dir!!.createSubdirectory(part)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     if (dir != null) {
@@ -121,26 +139,36 @@ class ImplementPlatformImplFix(private val platforms: List<Platform>) : LocalQui
             WriteCommandAction.runWriteCommandAction(project) {
                 val elementFactory = JavaPsiFacade.getElementFactory(project)
 
-                val paramTexts = mutableListOf<String>()
                 val isInstanceMethod = originalMethod != null && !originalMethod.hasModifierProperty(PsiModifier.STATIC)
 
-                for ((index, psiType) in expectedSignature.parameterTypes.withIndex()) {
-                    val typeName = if (index == 0 && isInstanceMethod) {
-                        // Use simple name for the 'this' parameter
-                        originalMethod.containingClass?.name ?: psiType.canonicalText
-                    } else {
-                        psiType.canonicalText
-                    }
-                    val paramName = if (index == 0 && isInstanceMethod) "instance" else "arg$index"
-                    paramTexts.add("$typeName $paramName")
-                }
-
-                val returnTypeText = expectedSignature.returnType.canonicalText
                 val methodText = buildString {
-                    append("public static $returnTypeText ${expectedSignature.name}(")
-                    append(paramTexts.joinToString(", "))
+                    append("public static ")
+                    if (originalMethod != null) {
+                        val returnType = originalMethod.returnType?.presentableText ?: "void"
+                        append(returnType).append(" ").append(originalMethod.name).append("(")
+
+                        val params = mutableListOf<String>()
+                        if (isInstanceMethod) {
+                            val containingClass = originalMethod.containingClass
+                            val typeName = containingClass?.name ?: expectedSignature.parameterTypes.first().presentableText
+                            params.add("$typeName instance")
+                        }
+                        originalMethod.parameterList.parameters.forEach {
+                            params.add("${it.type.presentableText} ${it.name}")
+                        }
+                        append(params.joinToString(", "))
+                    } else {
+                        // Fallback if originalMethod is null (shouldn't happen with our new flow)
+                        val returnTypeText = expectedSignature.returnType.presentableText
+                        append(returnTypeText).append(" ").append(expectedSignature.name).append("(")
+                        val paramTexts = expectedSignature.parameterTypes.mapIndexed { index, psiType ->
+                            "${psiType.presentableText} arg$index"
+                        }
+                        append(paramTexts.joinToString(", "))
+                    }
+
                     append(") {\n")
-                    if (expectedSignature.returnType == PsiType.VOID) {
+                    if (expectedSignature.returnType == PsiType.VOID || (expectedSignature.returnType as? PsiPrimitiveType)?.name == "void") {
                         append("    throw new UnsupportedOperationException(\"TODO: Implement for platform\");\n")
                     } else {
                         append("    // TODO: Implement for platform\n")
