@@ -9,7 +9,7 @@ import net.mehvahdjukaar.candle.util.CandleBundle
 
 class ReplaceWithAssertionErrorFix : LocalQuickFix {
     override fun getFamilyName(): String =
-        CandleBundle["inspection.expectPlatform.replaceWithAssertion"]
+        CandleBundle["inspection.platformImpl.replaceWithAssertion"]
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val method = when (val element = descriptor.psiElement) {
@@ -36,7 +36,7 @@ class ReplaceWithAssertionErrorFix : LocalQuickFix {
 // Additional quick fix for missing body (similar)
 class AddAssertionErrorBodyFix : LocalQuickFix {
     override fun getFamilyName(): String =
-        CandleBundle["inspection.expectPlatform.addBody"]
+        CandleBundle["inspection.platformImpl.addBody"]
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val method = descriptor.psiElement as? PsiMethod ?: return

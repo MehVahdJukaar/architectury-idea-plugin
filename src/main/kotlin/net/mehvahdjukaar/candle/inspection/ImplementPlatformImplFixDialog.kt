@@ -43,7 +43,7 @@ class ImplementPlatformImplFixDialog(
     }
 
     init {
-        title = CandleBundle["inspection.implementExpectPlatform.single", platform]
+        title = CandleBundle["inspection.implementPlatformImpl.single", platform]
         init()
         val comboBox = EditorComboBox("")
         comboBox.addItemListener {

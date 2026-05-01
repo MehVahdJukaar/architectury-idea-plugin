@@ -1,9 +1,13 @@
 package net.mehvahdjukaar.candle.inspection
 
 import com.intellij.codeInspection.LocalInspectionTool
-import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.codeInspection.ProblemHighlightType
-import com.intellij.psi.*
+import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.psi.JavaElementVisitor
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiElementVisitor
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.search.GlobalSearchScope
 import net.mehvahdjukaar.candle.util.AnnotationType
 import net.mehvahdjukaar.candle.util.CandleBundle
@@ -20,6 +24,20 @@ class UnimplementedPlatformImplInspection : LocalInspectionTool() {
 
                 val containingClass = method.containingClass ?: return
                 val project = method.project
+                val availablePlatforms = Platform.listAvailable(project)
+
+                val isNotCommon = availablePlatforms.any { it.hasElement(method) }
+
+                if (isNotCommon) {
+                    holder.registerProblem(
+                        method.findAnnotation(AnnotationType.PLATFORM_IMPLEMENTATION) ?: method.nameIdentifier
+                        ?: method,
+                        CandleBundle["inspection.unexpectedPlatformImpl", method.name],
+                        ProblemHighlightType.ERROR,
+                    )
+                    return
+                }
+
                 val facade = JavaPsiFacade.getInstance(project)
                 val implClassName = Platform.getPlatformImplImplementationName(containingClass)
 
@@ -29,7 +47,7 @@ class UnimplementedPlatformImplInspection : LocalInspectionTool() {
                 // Build the expected signature of the implementation method
                 val expectedSignature = ExpectedImplSignature.fromExpectMethod(method)
 
-                val missingPlatforms = Platform.listAvailable(project).filter { platform ->
+                val missingPlatforms = availablePlatforms.filter { platform ->
 
                     // Find the impl class that belongs to this platform's module
                     val implClass = candidateClasses.firstOrNull { platform.hasElement(it) }
@@ -51,8 +69,9 @@ class UnimplementedPlatformImplInspection : LocalInspectionTool() {
                     }
 
                     holder.registerProblem(
-                        method.findAnnotation(AnnotationType.PLATFORM_IMPLEMENTATION) ?: method.nameIdentifier ?: method,
-                        CandleBundle["inspection.missingExpectPlatform", method.name, missingPlatforms.joinToString()],
+                        method.findAnnotation(AnnotationType.PLATFORM_IMPLEMENTATION) ?: method.nameIdentifier
+                        ?: method,
+                        CandleBundle["inspection.missingPlatformImpl", method.name, missingPlatforms.joinToString()],
                         ProblemHighlightType.ERROR,
                         *fixes.toTypedArray()
                     )

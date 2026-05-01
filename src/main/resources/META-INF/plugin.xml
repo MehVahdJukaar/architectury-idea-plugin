@@ -48,7 +48,7 @@
                          groupKey="group.key"/>
 
         <localInspection language="JAVA"
-                         shortName="ExpectPlatformBody"
+                         shortName="PlatformImplBody"
                          enabledByDefault="true"
                          level="WARNING"
                          implementationClass="net.mehvahdjukaar.candle.inspection.PlatformImplBodyInspection"

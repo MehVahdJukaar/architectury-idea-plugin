@@ -25,7 +25,7 @@ class PlatformImplBodyInspection : LocalInspectionTool() {
                     // Missing body entirely (shouldn't happen for non-abstract methods)
                     holder.registerProblem(
                         method.nameIdentifier ?: method,
-                        CandleBundle["inspection.expectPlatform.missingBody"],
+                        CandleBundle["inspection.platformImpl.missingBody"],
                         AddAssertionErrorBodyFix()
                     )
                     return
@@ -35,7 +35,7 @@ class PlatformImplBodyInspection : LocalInspectionTool() {
                 if (!isValidExpectBody(body)) {
                     holder.registerProblem(
                         body,
-                        CandleBundle["inspection.expectPlatform.invalidBody"],
+                        CandleBundle["inspection.platformImpl.invalidBody"],
                         ReplaceWithAssertionErrorFix()
                     )
                 }

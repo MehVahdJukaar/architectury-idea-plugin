@@ -21,9 +21,9 @@ class ImplementPlatformImplFix(private val platforms: List<Platform>) : LocalQui
     override fun getFamilyName(): String {
         val platform = platforms.singleOrNull()
         return if (platform != null)
-            CandleBundle["inspection.implementExpectPlatform.single", platform]
+            CandleBundle["inspection.implementPlatformImpl.single", platform]
         else
-            CandleBundle["inspection.implementExpectPlatform"]
+            CandleBundle["inspection.implementPlatformImpl"]
     }
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
