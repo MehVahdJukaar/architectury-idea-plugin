@@ -1,9 +1,11 @@
 package net.mehvahdjukaar.candle.inspection
+
 import com.intellij.codeInspection.*
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.psi.*
 import net.mehvahdjukaar.candle.util.AnnotationType
+import net.mehvahdjukaar.candle.util.Platform
 import net.mehvahdjukaar.candle.util.isValidVirtualOverrideForPlatform
 
 class VirtualOverrideInspection : LocalInspectionTool() {
@@ -30,12 +32,23 @@ class VirtualOverrideInspection : LocalInspectionTool() {
                     return
                 }
 
+                val plat = Platform.fromString(platformId)
+                if (plat == null) {
+                    holder.registerProblem(
+                        annotation,
+                        "@VirtualOverride did not specify a valid platform",
+                        ProblemHighlightType.ERROR
+                    )
+                    return
+                }
+
+
                 // Validate override
-                if (!method.isValidVirtualOverrideForPlatform(platformId)) {
+                if (!method.isValidVirtualOverrideForPlatform(plat)) {
                     // Invalid override – highlight the annotation, not the method
                     holder.registerProblem(
                         annotation,
-                        "Method does not override any method from platform '$platformId'",
+                        "Method does not override any method from platform '$plat'",
                         ProblemHighlightType.ERROR
                     )
                 }

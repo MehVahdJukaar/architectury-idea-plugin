@@ -106,14 +106,13 @@ fun PsiClass.findAllPlatformVirtualOverridableMethods(): List<PlatformVirtualMet
  * Checks if this method is a valid virtual override for the given platform.
  * Returns true if the method exists in the platform's supertype hierarchy.
  */
-fun PsiMethod.isValidVirtualOverrideForPlatform(platformId: String): Boolean {
+fun PsiMethod.isValidVirtualOverrideForPlatform(plat: Platform): Boolean {
     val containingClass = containingClass ?: return false
     val index = containingClass.getVirtualMethodIndex()
-    val methodsForName = index[this.name] ?: return false
+    val platformsForName = index[this.name] ?: return false
+    val platformMethods = platformsForName[plat] ?: return false
 
-    return methodsForName.values.flatten().any {
-        it.platform.id.equals(platformId, ignoreCase = true) && it.matches(this)
-    }
+    return platformMethods.any { it.matches(this) }
 }
 
 // ---------------------------------------------------------------------

@@ -6,9 +6,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
-import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.annotations.PropertyKey
-import org.jetbrains.debugger.Scope
 import org.jetbrains.kotlin.idea.base.util.module
 
 /**
@@ -39,7 +37,12 @@ enum class Platform(
 
     override fun toString() = CandleBundle[translationKey]
 
+
     companion object {
+
+        fun fromString(string: String): Platform? {
+            return Platform.entries.find { string == it.id }
+        }
 
         /**
          * Gets the name of the [clazz]'s implementation version for this platform.
@@ -66,7 +69,7 @@ enum class Platform(
         }
 
         fun matchesPlatImplName(name: String, pkg: String): Boolean {
-        return    name.endsWith("Impl") && Platform.entries.any { pkg.endsWith(".${platSubPackageName()}") }
+            return name.endsWith("Impl") && Platform.entries.any { pkg.endsWith(".${platSubPackageName()}") }
 
         }
     }
@@ -75,7 +78,7 @@ enum class Platform(
         return ModuleManager.getInstance(project).modules.find { module ->
             val name: String = module.name.lowercase()
             // Matches: ":fabric", "myproject.fabric.main", "fabric-api", etc.
-             name.contains(".${this.id}.main") //name.startsWith("ideaproject") &&
+            name.contains(".${this.id}.main") //name.startsWith("ideaproject") &&
         }
     }
 
